@@ -73,13 +73,13 @@ class BaseWzryApi:
         "user-agent": "okhttp/4.9.1",
     }
 
-    async def get_battle_history(self, yd_user_id: str, option: int = 0):
+    async def get_battle_history(self, yd_user_id: str, option: int = 0, lt: int = 0):
         header = deepcopy(self._HEADER)
         # header['gameserverid'] = '1469'
         # header['gameroleid'] = '3731578254'
 
         data = {
-            "lastTime": 0,
+            "lastTime": lt,
             "recommendPrivacy": 0,
             "apiVersion": 5,
             # 'friendRoleId': '3731578254',

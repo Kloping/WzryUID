@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Union
 import numpy as np
-
+import time
 from ..utils.database.models import WzryBind
 from ..utils.wzry_api import wzry_api
 
@@ -22,13 +22,42 @@ async def draw_online_list_img(bot_id: str) -> Union[str, bytes]:
         # 获取资料数据
         profile_data = await wzry_api.get_user_profile(yd_user_id, data['roleId'])
         # roleCard
-        # areaName
-        # "roleJobName": "尊贵铂金I",
-        # "roleName": "拾;枝",
-        # "serverName": "手Q30区",
-        # gameOnline
         roleCard = profile_data['roleCard']
-        online = '在线🟢' if roleCard['gameOnline'] == 1 else '离线🔘'
+        if roleCard['gameOnline'] == 1:
+            bhd = await wzry_api.get_battle_history(yd_user_id, 10)
+            if isinstance(bhd, int):
+                online = '🟢在线'
+            elif bhd['isGaming']:
+                online = f"🟠{bhd['gaming']['mapName']}-{bhd['gaming']['title']}"
+            else:
+                online = '🟢在线'
+        else:
+            online = '⚪离线'
         result = result + (f"{roleCard['areaName']}-{roleCard['roleJobName']}\n"
-                           f"  \t{roleCard['roleName']} {roleCard['serverName']} {online}\n")
+                           f"\t{roleCard['roleName']} {roleCard['serverName']}\t{online}\n")
+    return result
+
+
+async def draw_online_one_img(yd_user_id) -> Union[str, bytes]:
+    result = "结果↓↓↓↓↓↓\n"
+    oData = await wzry_api.get_user_role(yd_user_id)
+    if isinstance(oData, int):
+        return get_error(oData)
+    data = oData[0]
+    # 获取资料数据
+    profile_data = await wzry_api.get_user_profile(yd_user_id, data['roleId'])
+    # roleCard
+    roleCard = profile_data['roleCard']
+    if roleCard['gameOnline'] == 1:
+        bhd = await wzry_api.get_battle_history(yd_user_id, 10)
+        if isinstance(bhd, int):
+            online = '🟢在线'
+        elif bhd['isGaming']:
+            online = f"🟠{bhd['gaming']['mapName']}-{bhd['gaming']['title']}"
+        else:
+            online = '🟢在线'
+    else:
+        online = '⚪离线'
+    result = result + (f"{roleCard['areaName']}-{roleCard['roleJobName']}\n"
+                       f"\t{roleCard['roleName']} {roleCard['serverName']}\t{online}\n")
     return result

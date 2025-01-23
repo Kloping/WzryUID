@@ -16,8 +16,8 @@ async def draw_online_list_img(bot_id: str) -> Union[str, bytes]:
     result = "在线列表↓↓↓↓↓↓\n"
     for yd_user_id in uids:
         oData = await wzry_api.get_user_role(yd_user_id)
-        if isinstance(oData, int):
-            return get_error(oData)
+        if isinstance(oData, int) or len(oData):
+            continue
         data = oData[0]
         # 获取资料数据
         profile_data = await wzry_api.get_user_profile(yd_user_id, data['roleId'])

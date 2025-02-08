@@ -32,7 +32,7 @@ async def send_wzry_online_list(bot: Bot, ev: Event):
     await bot.send(im)
 
 
-@sv_wzry_online_one.on_command('王者窥视', 'wzks')
+@sv_wzry_online_one.on_command(('王者窥视', 'wzks'))
 async def send_wzry_online_list(bot: Bot, ev: Event):
     uid = await get_uid(bot, ev, WzryBind)
     if uid is None:

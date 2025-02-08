@@ -27,6 +27,14 @@
         "need_admin": false
       },
       {
+        "name": "王者uid",
+        "desc": "查看你当前的王者UID",
+        "eg": "王者UID",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
         "name": "王者添加CK",
         "desc": "往数据库添加一个营地CK",
         "eg": "王者添加CK18-HU",
@@ -51,6 +59,14 @@
         "name": "查荣耀",
         "desc": "查询自己最近的王者战绩",
         "eg": "查荣耀",
+        "need_ck": true,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
+        "name": "王者窥视",
+        "desc": "偷看某人是否在线",
+        "eg": "王者窥视@",
         "need_ck": true,
         "need_sk": false,
         "need_admin": false

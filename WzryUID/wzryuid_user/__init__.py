@@ -1,14 +1,17 @@
-from gsuid_core.sv import SV
 from gsuid_core.bot import Bot
 from gsuid_core.models import Event
+from gsuid_core.sv import SV
+from gsuid_core.utils.database.api import get_uid
 from gsuid_core.utils.message import send_diff_msg
-
-from ..utils.database.models import WzryBind
 from .deal_ck import deal_wz_ck, delete_wz_ck
+from ..utils.database.models import WzryBind
+from ..utils.error_reply import get_error
+from ..utils.wzry_api import wzry_api
 
 wzry_user_info = SV("王者用户绑定")
 wzry_cookie_add = SV("王者CK添加", area="DIRECT")
 wzry_cookie_delete = SV("王者CK删除", area="DIRECT", pm=0)
+sv_wzry_current_uid = SV("当前绑定uid")
 
 
 @wzry_user_info.on_command(
@@ -48,7 +51,19 @@ async def send_wz_link_uid_msg(bot: Bot, ev: Event):
     elif "切换" in ev.command:
         retcode = await WzryBind.switch_uid_by_game(qid, ev.bot_id, uid)
         if retcode == 0:
-            return await bot.send(f"[wzry] 切换UID{uid}成功！")
+            resu = f"[wzry] 切换UID{uid}成功！"
+            currentu = await WzryBind.get_uid_by_game(qid, ev.bot_id)
+            resu = resu + f'/当前:{currentu}'
+            allu = await WzryBind.get_uid_list_by_game(qid, ev.bot_id)
+            for uuid in allu:
+                oData = await wzry_api.get_user_role(uuid)
+                if isinstance(oData, int) or len(oData) == 0:
+                    continue
+                data = oData[0]
+                profile_data = await wzry_api.get_user_profile(uuid, data['roleId'])
+                roleCard = profile_data['roleCard']
+                resu = resu + f"\n{uuid}: {roleCard['areaName']}-{roleCard['serverName']}\n\t {roleCard['roleName']} {roleCard['roleJobName']}"
+            return await bot.send(resu)
         else:
             return await bot.send(f"[wzry] 尚未绑定该UID{uid}")
     else:
@@ -76,3 +91,18 @@ async def send_wz_delete_ck_msg(bot: Bot, ev: Event):
         return await bot.send('末尾需要跟正确的UID, 例如 王者删除ck1234567')
     im = await delete_wz_ck(uid)
     await bot.send(im)
+
+
+@sv_wzry_current_uid.on_command(('王者uid', '王者UID'))
+async def send_wzry_online_list(bot: Bot, ev: Event):
+    uid = await get_uid(bot, ev, WzryBind)
+    if uid is None:
+        return await bot.send(get_error(-41))
+    oData = await wzry_api.get_user_role(uid)
+    resu = f"当前uid:{uid}"
+    if isinstance(oData, int) or len(oData) != 0:
+        data = oData[0]
+        profile_data = await wzry_api.get_user_profile(uid, data['roleId'])
+        roleCard = profile_data['roleCard']
+        resu = resu + f"\n{roleCard['areaName']}-{roleCard['serverName']}\n\t {roleCard['roleName']} {roleCard['roleJobName']}"
+    await bot.send(resu)

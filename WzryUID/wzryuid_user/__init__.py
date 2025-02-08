@@ -52,17 +52,10 @@ async def send_wz_link_uid_msg(bot: Bot, ev: Event):
         retcode = await WzryBind.switch_uid_by_game(qid, ev.bot_id, uid)
         if retcode == 0:
             resu = f"[wzry] 切换UID{uid}成功！"
+            allu = await WzryBind.get_uid_list_by_game(ev.user_id, ev.bot_id)
+            resu = resu + f"\n已绑定的uid:{str(allu)}\ntips:详情使用`王者uid`查看"
             currentu = await WzryBind.get_uid_by_game(qid, ev.bot_id)
-            resu = resu + f'/当前:{currentu}'
-            allu = await WzryBind.get_uid_list_by_game(qid, ev.bot_id)
-            for uuid in allu:
-                oData = await wzry_api.get_user_role(uuid)
-                if isinstance(oData, int) or len(oData) == 0:
-                    continue
-                data = oData[0]
-                profile_data = await wzry_api.get_user_profile(uuid, data['roleId'])
-                roleCard = profile_data['roleCard']
-                resu = resu + f"\n{uuid}: {roleCard['areaName']}-{roleCard['serverName']}\n\t {roleCard['roleName']} {roleCard['roleJobName']}"
+            resu = resu + f'\n当前: {currentu}'
             return await bot.send(resu)
         else:
             return await bot.send(f"[wzry] 尚未绑定该UID{uid}")
@@ -105,4 +98,15 @@ async def send_wzry_online_list(bot: Bot, ev: Event):
         profile_data = await wzry_api.get_user_profile(uid, data['roleId'])
         roleCard = profile_data['roleCard']
         resu = resu + f"\n{roleCard['areaName']}-{roleCard['serverName']}\n\t {roleCard['roleName']} {roleCard['roleJobName']}"
+    allu = await WzryBind.get_uid_list_by_game(ev.user_id, ev.bot_id)
+    resu = resu + "\n\n其他已绑定uid:"
+    for uuid in allu:
+        if uuid == uid: continue
+        oData = await wzry_api.get_user_role(uuid)
+        if isinstance(oData, int) or len(oData) == 0:
+            continue
+        data = oData[0]
+        profile_data = await wzry_api.get_user_profile(uuid, data['roleId'])
+        roleCard = profile_data['roleCard']
+        resu = resu + f"\n{uuid}: {roleCard['areaName']}-{roleCard['serverName']}\n\t {roleCard['roleName']} {roleCard['roleJobName']}"
     await bot.send(resu)

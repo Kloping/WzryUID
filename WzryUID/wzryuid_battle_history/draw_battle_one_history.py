@@ -1,7 +1,11 @@
+import time
 from pathlib import Path
 from typing import Tuple, Union
+from urllib.parse import urlparse, parse_qs
 
 from PIL import Image, ImageDraw, ImageFilter
+from tomlkit.items import Array
+
 from gsuid_core.utils.fonts.fonts import core_font
 from gsuid_core.utils.image.convert import convert_img
 from gsuid_core.utils.image.image_tools import (
@@ -9,10 +13,9 @@ from gsuid_core.utils.image.image_tools import (
     get_qq_avatar,
     draw_pic_with_ring,
 )
-
-from ..utils.wzry_api import wzry_api
-from ..utils.error_reply import get_error
+from .draw_battle_history import draw_history_img
 from ..utils.download import download_file
+from ..utils.error_reply import get_error
 from ..utils.resource_path import (
     BG_PATH,
     ICON_PATH,
@@ -20,24 +23,52 @@ from ..utils.resource_path import (
     SKILL_PATH,
     AVATAR_PATH,
 )
+from ..utils.wzry_api import wzry_api
 
 TEXT_PATH = Path(__file__).parent / 'texture2d'
 
 
-async def draw_history_img(
-    user_id: str, yd_user_id: str, option: int = 0
+async def draw_history_one_img(
+    user_id: str, yd_user_id: str, hn: str
 ) -> Union[str, bytes]:
+    heroId = -1
+    map0 = await wzry_api.get_hero_map();
+    for heroInfo in map0:
+        if hn == heroInfo['cname']:
+            heroId = heroInfo['ename']
+            break
+        else:
+            continue
+
+    if heroId == -1:
+        return draw_history_img(user_id, yd_user_id)
     oData = await wzry_api.get_user_role(yd_user_id)
     if isinstance(oData, int):
         return get_error(oData)
 
-    data = await wzry_api.get_battle_history(yd_user_id, option)
-    if isinstance(data, int):
-        return get_error(data)
+    data = oData[0]
+    roleId = data['roleId']
+    serverId = data['serverId']
+    lt = round(time.time())
+    history_list: Array = None
+    blist: Array = None
+    upblist: Array = None
+    while True:
+        if blist is None:
+            blist = await wzry_api.get_battle_one_history(serverId, roleId, heroId, lt)
+            upblist = blist
+            history_list = blist['zjList']
+        else:
+            zjList = upblist['zjList']
+            lt = int(zjList[len(zjList) - 1]['gameseq'])
+            upblist = await wzry_api.get_battle_one_history(serverId, roleId, heroId, lt)
+            history_list.extend(upblist['zjList'])
+        if len(history_list) >= 12: break
+    ## 成功获得 指定英雄对局列表
 
-    game_text = '正在游戏' if data['isGaming'] else '当前未在游戏中'
+    game_text = '未知游戏状态'
 
-    battle_data = data['list'][:12]
+    battle_data = history_list[:12]
 
     if len(battle_data) < 12:
         h = 500 + len(battle_data) * 120 + 60
@@ -46,7 +77,7 @@ async def draw_history_img(
 
     img = await get_color_bg(950, h, BG_PATH)
     img = img.filter(ImageFilter.GaussianBlur(28))
-    avatar_img = await get_qq_avatar(avatar_url=oData[0]['roleIcon'])
+    avatar_img = await get_qq_avatar(avatar_url=data['roleIcon'])
     avatar_img = await draw_pic_with_ring(avatar_img, 320)
 
     title = Image.open(TEXT_PATH / 'title.png')
@@ -57,10 +88,10 @@ async def draw_history_img(
     hero_mask = Image.open(TEXT_PATH / 'avatar_mask.png')
     skill_mask = Image.open(TEXT_PATH / 'skill_mask.png')
 
+    hero_img = None
     text_color = (48, 48, 48)
-    toAppRoleId = None
     for index, battle in enumerate(battle_data):
-        is_win = True if battle['gameresult'] == 1 else False
+        is_win = True if battle['gameresult'] == "1" else False
         date = battle["gametime"]
         if is_win:
             bar_text = '胜利'
@@ -71,29 +102,28 @@ async def draw_history_img(
             babg = Image.open(TEXT_PATH / 'lose_bg.png')
             bar_color = (255, 66, 66)
 
-        # 从链接中截取 请求对局详情必要的参数 对应账号
-        if toAppRoleId is None:
-            battleDetailUrl: str = battle['battleDetailUrl']
-            if len(battleDetailUrl) > 0:
-                i0 = battleDetailUrl.index("&toAppRoleId=")
-                i1 = battleDetailUrl.index("&toGameRoleId=")
-                toAppRoleId = battleDetailUrl[i0 + 13 : i1]  # noqa: E203
+        # 解析 URL
+        parsed_url = urlparse(battle['detailUrl'])
 
-        if toAppRoleId is None:
-            detail_data = -1
-        else:
-            detail_data = await wzry_api.get_battle_detail(
-                toAppRoleId,
-                battle['gameSvrId'],
-                battle['relaySvrId'],
-                battle['gameSeq'],
-                battle['battleType'],
-            )
+        # 获取查询参数部分
+        query_params = parse_qs(parsed_url.query)
+
+        # 将参数值从列表转换为单个值（如果只有一个值）
+        params_dict = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
+
+        # 从链接中截取 请求对局详情必要的参数 对应账号
+        detail_data = await wzry_api.get_battle_detail(
+            roleId,
+            params_dict['gameSvrId'],
+            params_dict['relaySvrId'],
+            params_dict['gameseq'],
+            battle['pvptype'],
+        )
         self_data = None
 
-        hero_path = AVATAR_PATH / f'{battle["heroId"]}.png'
+        hero_path = AVATAR_PATH / f'{battle["HeroID1"]}.png'
         icon_path = battle["heroIcon"]
-        name_path = f'{battle["heroId"]}.png'
+        name_path = f'{battle["HeroID1"]}.png'
 
         if not isinstance(detail_data, int):
             detail_data['redRoles'].extend(detail_data['blueRoles'])
@@ -110,9 +140,9 @@ async def draw_history_img(
 
             if skin0 is not None:
                 skin_id = skin0['skinId']
-                hero_path = AVATAR_PATH / f'{battle["heroId"]}-{skin_id}.png'
+                hero_path = AVATAR_PATH / f'{battle["HeroID1"]}-{skin_id}.png'
                 icon_path = skin0['skinIcon']
-                name_path = f'{battle["heroId"]}-{skin0["skinId"]}.png'
+                name_path = f'{battle["HeroID1"]}-{skin0["skinId"]}.png'
             # 画召唤师技能
             battle_records = self_data['battleRecords']
             skill = battle_records['skill']
@@ -171,17 +201,15 @@ async def draw_history_img(
             (281, 52), battle['mapName'], text_color, core_font(18), 'lm'
         )
 
-        if battle["desc"] != "":
+        if battle['matchDesc'] != "":
             babg_draw.rectangle(
                 (636, 10, 676, 110),
                 fill=(241, 224, 198, 33),
                 outline=(100, 35, 0, 56),
                 width=2,
             )
-            for ie0, e1 in enumerate(battle['desc']):
-                babg_draw.text(
-                    (644, 30 + (ie0 * 30)), e1, bar_color, core_font(26), 'lm'
-                )
+            for ie0, e1 in enumerate(battle['matchDesc']):
+                babg_draw.text((644, 30 + (ie0 * 30)), e1, bar_color, core_font(26), 'lm')
 
         babg_draw.text(
             (210, 83),
@@ -207,6 +235,7 @@ async def draw_history_img(
     img_draw.text((475, 495), game_text, text_color, core_font(30), 'mm')
     all_black = Image.new('RGBA', img.size, (255, 255, 255))
     img = Image.alpha_composite(all_black, img)
+
     return await convert_img(img)
 
 

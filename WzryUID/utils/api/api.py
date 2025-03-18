@@ -21,3 +21,5 @@ SKIN_LIST = f'{GAME_URL}/play/h5getheroskinlist'
 
 # 资料信息
 HERO_RANK_LIST = f'{MAIN_URL}/hero/getmaintranklist'
+PAGE_HERO_HISTORY = f'{MAIN_URL}/gametoolbox/hero/record/pagedetails'
+HERO_HISTORY = f'{MAIN_URL}/gametoolbox/hero/record/historydetails'

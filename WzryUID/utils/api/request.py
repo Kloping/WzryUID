@@ -1,3 +1,4 @@
+import json
 import time
 import uuid
 from copy import deepcopy
@@ -9,6 +10,7 @@ from aiohttp import FormData, TCPConnector, ClientSession, ContentTypeError
 from ..database.models import WzryUser
 from .model import SkinInfo, HeroRankList
 from .api import (
+    HERO_LIST,
     SKIN_LIST,
     USER_PROFILE,
     BATTLE_DETAIL,
@@ -17,6 +19,7 @@ from .api import (
     HERO_RANK_LIST,
     ALL_ROLE_LIST_V3,
     PROFILE_HERO_LIST,
+    HERO_HISTORY
 )
 
 
@@ -46,9 +49,9 @@ class BaseWzryApi:
     _HEADER = {
         "Host": "kohcamp.qq.com",
         "istrpcrequest": "true",
-        "cchannelid": "10028581",
+        "cchannelid": "10003391",
         "cclientversioncode": "2037857908",
-        "cclientversionname": "7.84.0628",
+        "cclientversionname": "8.92.0125",
         "ccurrentgameid": "20001",
         "cgameid": "20001",
         "cgzip": "1",
@@ -88,6 +91,21 @@ class BaseWzryApi:
         }
         raw_data = await self._wzry_request(
             BATTLE_HISTORY, "POST", header, None, data
+        )
+        return self.unpack(raw_data)
+
+    async def get_battle_one_history(self, serverId: str, roleId: str, heroId: int, lt: int = 0):
+        header = deepcopy(self._HEADER)
+        header['serverId'] = str(serverId)
+
+        data = {
+            "heroid": str(heroId),
+            "lastTime": lt,
+            "roleId": roleId,
+            "recommendPrivacy": 0
+        }
+        raw_data = await self._wzry_request(
+            HERO_HISTORY, "POST", header, None, data
         )
         return self.unpack(raw_data)
 
@@ -143,6 +161,10 @@ class BaseWzryApi:
             USER_PROFILE, "POST", header, None, data
         )
         return self.unpack(raw_data)
+
+    async def get_hero_map(self):
+        raw_data = await self._wzry_request1(HERO_LIST, "GET", None, None)
+        return json.loads(raw_data['data'])
 
     async def get_user_profile_index(self, yd_user_id: str, role_id: str):
         header = deepcopy(self._HEADER)
@@ -316,6 +338,39 @@ class BaseWzryApi:
             header["token"] = _i[1]
             header["userid"] = _i[0]
 
+        async with ClientSession(
+            connector=TCPConnector(verify_ssl=self.ssl_verify)
+        ) as client:
+            async with client.request(
+                method,
+                url=url,
+                headers=header,
+                params=params,
+                data=data,
+                timeout=300,
+            ) as resp:
+                try:
+                    raw_data = await resp.json()
+                except ContentTypeError:
+                    _raw_data = await resp.text()
+                    raw_data = {"retcode": -999, "data": _raw_data}
+                if (
+                    raw_data
+                    and 'returnCode' in raw_data
+                    and raw_data['returnCode'] != 0
+                ):
+                    return raw_data['returnCode']
+                logger.debug(raw_data)
+                return raw_data
+
+    async def _wzry_request1(
+        self,
+        url: str,
+        method: Literal["GET", "POST"] = "GET",
+        header: Dict[str, Any] = _HEADER,
+        params: Optional[Dict[str, Any]] = None,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> Union[Dict, int]:
         async with ClientSession(
             connector=TCPConnector(verify_ssl=self.ssl_verify)
         ) as client:

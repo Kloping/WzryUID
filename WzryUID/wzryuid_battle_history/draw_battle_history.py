@@ -75,9 +75,7 @@ async def draw_history_img(
         if toAppRoleId is None:
             battleDetailUrl: str = battle['battleDetailUrl']
             if len(battleDetailUrl) > 0:
-                i0 = battleDetailUrl.index("&toAppRoleId=")
-                i1 = battleDetailUrl.index("&toGameRoleId=")
-                toAppRoleId = battleDetailUrl[i0 + 13 : i1]  # noqa: E203
+                toAppRoleId = data['roleId']  # noqa: E203
 
         if toAppRoleId is None:
             detail_data = -1

@@ -73,9 +73,7 @@ async def draw_history_img(
 
         # 从链接中截取 请求对局详情必要的参数 对应账号
         if toAppRoleId is None:
-            battleDetailUrl: str = battle['battleDetailUrl']
-            if len(battleDetailUrl) > 0:
-                toAppRoleId = data['roleId']  # noqa: E203
+            toAppRoleId = oData[0]['roleId']
 
         if toAppRoleId is None:
             detail_data = -1

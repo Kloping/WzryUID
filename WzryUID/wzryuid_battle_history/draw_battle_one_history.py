@@ -58,11 +58,13 @@ async def draw_history_one_img(
             blist = await wzry_api.get_battle_one_history(serverId, roleId, heroId, lt)
             upblist = blist
             history_list = blist['zjList']
+            if len(history_list) < 5: break
         else:
             zjList = upblist['zjList']
             lt = int(zjList[len(zjList) - 1]['gameseq'])
             upblist = await wzry_api.get_battle_one_history(serverId, roleId, heroId, lt)
             history_list.extend(upblist['zjList'])
+            if len(upblist['zjList']) < 5: break
         if len(history_list) >= 12: break
     ## 成功获得 指定英雄对局列表
 

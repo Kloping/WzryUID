@@ -41,7 +41,7 @@ async def draw_history_one_img(
             continue
 
     if heroId == -1:
-        return draw_history_img(user_id, yd_user_id)
+        return await draw_history_img(user_id, yd_user_id)
     oData = await wzry_api.get_user_role(yd_user_id)
     if isinstance(oData, int):
         return get_error(oData)

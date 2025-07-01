@@ -222,11 +222,11 @@ async def draw_history_one_img(
         )
         babg_draw.text((855, 94), date, text_color, core_font(20), 'rm')
 
-        if battle['evaluateUrlV2']:
-            await paste_icon(battle['evaluateUrlV2'], babg, (755, 10))
+        if battle['evaluateUrlV3']:
+            await paste_icon(battle['evaluateUrlV3'], babg, (755, 10))
 
-        if battle['mvpUrlV2']:
-            await paste_icon(battle['mvpUrlV2'], babg, (755, 45))
+        if battle['mvpUrlV3']:
+            await paste_icon(battle['mvpUrlV3'], babg, (755, 45))
 
         img.paste(babg, (0, 540 + index * 120), babg)
 
